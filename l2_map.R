@@ -32,7 +32,90 @@ dist <- function(X)
   return (sqrt(dist2))
 }
 
-l2_map <- function(X,k=1,d=3,lambda=1,mu=1,nu=0,tau=1,niter=500,W=NULL,method=0,beta=0.5,epsilon=1e-6){
+
+sequential_map <- function(X,d=2,niter=500,print_iter=TRUE){
+  
+  X <- as.matrix(X)
+  N = dim(X)[1]
+  P = matrix(rnorm(n=dim(X)[2]*d),nrow=dim(X)[2],ncol=d)
+  X1 <- X %*% P
+  
+  D1 <- dist(X1)
+  D0 <- dist(X)
+  
+  Ri <- apply(D0,1,rank)
+  Ro <- apply(D1,1,rank)
+  
+  it <- 0
+  jt <- 1
+  last_update <- 0
+  while(it<niter){
+    
+    updated <- FALSE
+    i <- (jt %% N) + 1
+    j <- ((jt/N)%%N)+1
+    j2 <- ((jt/(N^2))%%N)+1
+    kc <- which(Ri[,i]==j)
+    kf <- which(Ri[,i]==j2)
+    
+    ref <- X1[i,]
+    clo <- X1[kc,]
+    far <- X1[kf,]
+    
+    l <- 1
+    grad <- matrix(0,nrow=N,ncol=d)
+    grad[i,] <- 2*sum((ref-clo)^2) * X1[i,] - 2*sum((ref-far)^2) * X1[i,]
+    grad[kc,] <- -2*sum((ref-clo)^2) * X1[kc,]
+    grad[kf,] <- 2*sum((ref-far)^2) * X1[kf,]
+    print("===========")
+    print(i)
+    print(j)
+    #print(k)
+    print((sum((ref-clo)^2)>sum((ref-far)^2)))
+    print(sum((ref-clo)^2))
+    print(sum((ref-far)^2))
+    print(l)
+    print("===========")
+    if(j<j2){
+      while((sum((ref-clo)^2)>sum((ref-far)^2))&(l<10)){
+        alpha <- 0.00001/l
+        l <- l + 1
+        X1 <- X1 - alpha * sum(grad^2) * grad/sum(X1^2)
+        updated <- TRUE
+        print("Updating...")
+      }
+    }
+    
+
+    if(updated){
+      last_update <- jt
+      it<- it + 1
+      if(print_iter){
+        print(paste("Current Update -- ",it,sep=""))
+        if(it>5){
+          plot(X1)
+        }
+      }
+      
+    }
+    if(jt-last_update>(N*(N+1))){
+      output <- list()
+      output$X <- X1
+      return(X1)
+    }
+    jt <- jt + 1
+    print(jt)
+  }
+  output <- list()
+  output$X <- X1
+  return(X1)
+  
+}
+
+
+
+
+l2_map <- function(X,k=1,d=3,lambda=1,mu=1,nu=0,tau=1,niter=500,W=NULL,method=0,beta=0.5,epsilon=1e-6,rankings=TRUE){
 
   Do <- dist(X)
   n <- nrow(Do)
@@ -61,7 +144,12 @@ l2_map <- function(X,k=1,d=3,lambda=1,mu=1,nu=0,tau=1,niter=500,W=NULL,method=0,
     diag(D1mulam2) <- 0
     M <- Dnu*D1mulam2-D1mu2*Dnulam
     E <- matrix(rep(1,n*d),n,d)
-      
+    if(rankings){
+      knnX <- apply(D1,1,rank)
+      knnY <- apply(Do,1,rank)
+      R <- ifelse(knnX==knnY,1,0)
+      M <- M*R
+    }  
     
     if(!is.null(W)){
       Grad <- X0*((W*M)%*%E)-(W*M)%*%X0
