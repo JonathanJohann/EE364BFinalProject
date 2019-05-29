@@ -33,75 +33,123 @@ dist <- function(X)
 }
 
 
-sequential_map <- function(X,d=2,niter=500,print_iter=TRUE){
-  
+sequential_map <- function(X,d=2,niter=500,print_iter=TRUE,squared=FALSE,augment=FALSE,beta=0.3,method=0,lambda=1,mu=1,nu=0,tau=1,stepsize=1e-4){
   X <- as.matrix(X)
   N = dim(X)[1]
   P = matrix(rnorm(n=dim(X)[2]*d),nrow=dim(X)[2],ncol=d)
   X1 <- X %*% P
-  
   D1 <- dist(X1)
   D0 <- dist(X)
-  
   Ri <- apply(D0,1,rank)
   Ro <- apply(D1,1,rank)
-  
   it <- 0
   jt <- 1
   last_update <- 0
+  cache = matrix(0,nrow=n,ncol=d)
+  Do <- dist(X)
+  n <- nrow(Do)
+  Dnu <- Do^(0)
+  Dnulam <- Do^(1)
+  
+  diag(Dnu) <- 0
+  diag(Dnulam) <- 0
   while(it<niter){
-    
     updated <- FALSE
-    i <- (jt %% N) + 1
-    j <- ((jt/N)%%N)+1
-    j2 <- ((jt/(N^2))%%N)+1
-    kc <- which(Ri[,i]==j)
-    kf <- which(Ri[,i]==j2)
-    
-    ref <- X1[i,]
-    clo <- X1[kc,]
-    far <- X1[kf,]
-    
-    l <- 1
-    grad <- matrix(0,nrow=N,ncol=d)
-    grad[i,] <- 2*sum((ref-clo)^2) * X1[i,] - 2*sum((ref-far)^2) * X1[i,]
-    grad[kc,] <- -2*sum((ref-clo)^2) * X1[kc,]
-    grad[kf,] <- 2*sum((ref-far)^2) * X1[kf,]
-    print("===========")
-    print(i)
-    print(j)
-    #print(k)
-    print((sum((ref-clo)^2)>sum((ref-far)^2)))
-    print(sum((ref-clo)^2))
-    print(sum((ref-far)^2))
-    print(l)
-    print("===========")
-    if(j<j2){
-      while((sum((ref-clo)^2)>sum((ref-far)^2))&(l<10)){
-        alpha <- 0.00001/l
-        l <- l + 1
-        X1 <- X1 - alpha * sum(grad^2) * grad/sum(X1^2)
-        updated <- TRUE
-        print("Updating...")
-      }
-    }
-    
-
-    if(updated){
-      last_update <- jt
-      it<- it + 1
-      if(print_iter){
-        print(paste("Current Update -- ",it,sep=""))
-        if(it>5){
-          plot(X1)
+    i <- (as.integer(jt) %% N) + 1
+    j <- ((as.integer(jt/N))%%N)+1
+    j2 <- ((as.integer(jt/(N^2)))%%N)+1
+    close_indices <- which(Ri[,i]==j)
+    far_indices <- which(Ri[,i]==j2)
+    if(j>j2){
+      if(length(close_indices)>0){
+        for(q in 1:length(close_indices)){
+          if(length(far_indices)>0){
+            for(qq in 1:length(far_indices)){
+              kc <- close_indices[q]
+              kf <- far_indices[qq]
+              ref <- X1[i,]
+              clo <- X1[kf,]
+              far <- X1[kc,]
+              l <- 1
+              grad <- matrix(0,nrow=N,ncol=d)
+              if(squared){
+                grad[i,] <- 2*(ref-clo) - 2*(ref-far)
+                grad[kf,] <- -2*(ref-clo)
+                grad[kc,] <- 2*(ref-far)
+              }
+              else{
+                grad[i,] <- 2*(ref-clo)/sqrt(sum((ref-clo)^2)) - 2*(ref-far)/sqrt(sum((ref-far)^2))
+                grad[kf,] <- -2*(ref-clo)/sqrt(sum((ref-clo)^2))
+                grad[kc,] <- 2*(ref-far)/sqrt(sum((ref-far)^2))
+              }
+              if(j2<j){
+                while((sum((ref-clo)^2)>sum((ref-far)^2))&(l<10)){
+                  alpha <- 0.00001/l
+                  l <- l + 1
+                  X1 <- X1 - alpha * grad
+                  updated <- TRUE
+                  print("Updating...")
+                }
+              }
+              if(augment){
+                X0 <- X1
+                D1mu2 <- D1^(mu-2)
+                diag(D1mu2) <- 0
+                D1mulam2 <- D1^(mu+1/lambda-2)
+                diag(D1mulam2) <- 0
+                M <- Dnu*D1mulam2-D1mu2*Dnulam
+                E <- matrix(rep(1,n*d),n,d)
+                Grad <- X0*(M%*%E)-M%*%X0
+                normgrad <- (norm(X0)/norm(Grad))*Grad
+                if(method==0){
+                  #constant
+                  X1 <- X0 - stepsize*normgrad  
+                } else if(method == 1){
+                  #1/k
+                  stepsize <- 1/i
+                  X1 <- X0 - stepsize*normgrad  
+                } else if(method == 2){
+                  #1/sqrt(k)
+                  stepsize <- 1/sqrt(i)
+                  X1 <- X0 - stepsize*normgrad
+                } else if(method == 3){
+                  #heavy ball
+                  X1 <- X0 - stepsize*normgrad + beta * (X0 - lagX0)
+                  lagX0 <- X0
+                } else if(method == 4){
+                  #adagrad
+                  cache = cache + normgrad^2
+                  X1 <- X0 - stepsize*normgrad / (sqrt(cache) + epsilon)
+                }
+                
+                
+                
+                D1 <- dist(X1)
+                D1mulam <- D1^(mu+1/lambda)
+                diag(D1mulam) <- 0
+                D1mu <- D1^mu
+                diag(D1mu) <- 0
+              }
+              
+              if(updated){
+                last_update <- jt
+                it<- it + 1
+                if(print_iter){
+                  print(paste("Current Update -- ",it,sep=""))
+                  if(it>5){
+                    print(is.nan(X1))
+                  }
+                }
+              }
+              if(jt-last_update>(N*N*(N+1))){
+                output <- list()
+                output$X <- X1
+                return(X1)
+              }
+            }
+          }
         }
       }
-      
-    }
-    if(jt-last_update>(N*(N+1))){
-      output <- list()
-      output$X <- X1
-      return(X1)
     }
     jt <- jt + 1
     print(jt)
@@ -109,7 +157,6 @@ sequential_map <- function(X,d=2,niter=500,print_iter=TRUE){
   output <- list()
   output$X <- X1
   return(X1)
-  
 }
 
 
