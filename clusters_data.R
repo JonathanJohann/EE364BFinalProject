@@ -131,13 +131,13 @@ iterative_map <- function(X,d=2,niter=1,niter2=1000,...){
   }
   return(x_temp)
 }
-inverse_p <- function(Z){
-  P = ecdf(Z[Z!=0])
-  eps = 1e-06
-  out <- ifelse(P(Z)!=0,1/P(Z),1/eps)
-  return(out)
-}
-ip_weights <- inverse_p(dist(X))
+#inverse_p <- function(Z){
+#  P = ecdf(Z[Z!=0])
+#  eps = 1e-06
+#  out <- ifelse(P(Z)!=0,1/P(Z),1/eps)
+#  return(out)
+#}
+#ip_weights <- inverse_p(dist(X))
 
 
 n = dim(X)[1]-1
@@ -173,12 +173,12 @@ for(i in 1:1){
   x6_5<- iterative_map(X=X,niter=10,method=4)
   
   #inverse probability
-  x7 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=0)$X
-  x7_1 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=1)$X
-  x7_2 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=2)$X
-  x7_3 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=3,beta=0.3)$X
-  x7_4 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=3,beta=0.7)$X
-  x7_5 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=4)$X
+  #x7 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=0)$X
+  #x7_1 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=1)$X
+  #x7_2 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=2)$X
+  #x7_3 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=3,beta=0.3)$X
+  #x7_4 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=3,beta=0.7)$X
+  #x7_5 <- l2_map(X,d=2,W=ip_weights,niter=1000,method=4)$X
   
   rk2 <- range_kept(X1=x2,X2=X,k=n)
   rk3 <- range_kept(X1=x3,X2=X,k=n)
@@ -204,12 +204,12 @@ for(i in 1:1){
   rk6_4 <- range_kept(X1=x6_4,X2=X,k=n)
   rk6_5 <- range_kept(X1=x6_5,X2=X,k=n)
   
-  rk7 <- range_kept(X1=x7,X2=X,k=n)
-  rk7_1 <- range_kept(X1=x7_1,X2=X,k=n)
-  rk7_2 <- range_kept(X1=x7_2,X2=X,k=n)
-  rk7_3 <- range_kept(X1=x7_3,X2=X,k=n)
-  rk7_4 <- range_kept(X1=x7_4,X2=X,k=n)
-  rk7_5 <- range_kept(X1=x7_5,X2=X,k=n)
+  #rk7 <- range_kept(X1=x7,X2=X,k=n)
+  #rk7_1 <- range_kept(X1=x7_1,X2=X,k=n)
+  #rk7_2 <- range_kept(X1=x7_2,X2=X,k=n)
+  #rk7_3 <- range_kept(X1=x7_3,X2=X,k=n)
+  #rk7_4 <- range_kept(X1=x7_4,X2=X,k=n)
+  #rk7_5 <- range_kept(X1=x7_5,X2=X,k=n)
   
   if(rk2>best_x2){
     best_x2 = rk2
@@ -302,38 +302,38 @@ for(i in 1:1){
   }
   
   
-  if(rk7>best_x7){
-    best_x7 = rk7
-    x7_star = x7
-  }
-  if(rk7_1>best_x7_1){
-    best_x7_1 = rk7_1
-    x7_1_star = x7_1
-  }
-  if(rk7_2>best_x7_2){
-    best_x7_2 = rk7_2
-    x7_2_star = x7_2
-  }
-  if(rk7_3>best_x7_3){
-    best_x7_3 = rk7_3
-    x7_3_star = x7_3
-  }
-  if(rk7_4>best_x7_4){
-    best_7_x4 = rk7_4
-    x7_4_star = x7_4
-  }
-  if(rk7_5>best_x7_5){
-    best_x7_5 = rk7_5
-    x7_5_star = x7_5
-  }
+  #if(rk7>best_x7){
+  #  best_x7 = rk7
+  #  x7_star = x7
+  #}
+  #if(rk7_1>best_x7_1){
+  #  best_x7_1 = rk7_1
+  #  x7_1_star = x7_1
+  #}
+  #if(rk7_2>best_x7_2){
+  #  best_x7_2 = rk7_2
+  #  x7_2_star = x7_2
+  #}
+  #if(rk7_3>best_x7_3){
+  #  best_x7_3 = rk7_3
+  #  x7_3_star = x7_3
+  #}
+  #if(rk7_4>best_x7_4){
+  #  best_7_x4 = rk7_4
+  #  x7_4_star = x7_4
+  #}
+  #if(rk7_5>best_x7_5){
+  #  best_x7_5 = rk7_5
+  #  x7_5_star = x7_5
+  #}
   
   print("Done")
 }
 
-method <- c("MDS","Sammon",rep("Inverse Square",6),rep("Iterative Inverse Square",6),rep("L2 Map",6),rep("Inverse Probability",6))
-stepsize <- c("-","-",rep(c("0.1","1/k","1/sqrt(k)","0.1","0.1","0.1"),4))
-descent_method <- c("-","-",rep(c("-","-","-","beta=0.3","beta=0.7","adagrad"),4))
-eval <- c(rk2,rk3,rk4,rk4_1,rk4_2,rk4_3,rk4_4,rk4_5,rk5,rk5_1,rk5_2,rk5_3,rk5_4,rk5_5,rk6,rk6_1,rk6_2,rk6_3,rk6_4,rk6_5,rk7,rk7_1,rk7_2,rk7_3,rk7_4,rk7_5)
+method <- c("MDS","Sammon",rep("Inverse Square",6),rep("Iterative Inverse Square",6),rep("L2 Map",6))
+stepsize <- c("-","-",rep(c("0.1","1/k","1/sqrt(k)","0.1","0.1","0.1"),3))
+descent_method <- c("-","-",rep(c("-","-","-","beta=0.3","beta=0.7","adagrad"),3))
+eval <- c(rk2,rk3,rk4,rk4_1,rk4_2,rk4_3,rk4_4,rk4_5,rk5,rk5_1,rk5_2,rk5_3,rk5_4,rk5_5,rk6,rk6_1,rk6_2,rk6_3,rk6_4,rk6_5)
 df <- data.frame(method=method,
                  stepsize=stepsize,
                  descent_method=descent_method,
