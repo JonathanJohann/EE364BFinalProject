@@ -53,26 +53,32 @@ for(i in 1:dim(X)[2]){
   X[,i] <- scale_this(X[,i])
 }
 
+iterative_map <- function(X,d=2,niter=1,niter2=1000,...){
+  x_temp <- cmdscale(dist(X),k=2)
+  for(i in 1:niter){
+    eps = 1/(dist(X) - dist(x_temp))^2
+    eps = ifelse(eps>1e+6,1e+6,eps)
+    x_temp <- l2_map(X,d=2,W=eps,niter=niter2,...)$X
+  }
+  return(x_temp)
+}
 # 260 is max for clusters
 # 160 is max for MNIST sub sample
+
 for(i in 1:iterations){
   seed <- sample(1000000,size=1)
-  range_kepts <- c()
-  if(dataset=="clusters"){
-    perplexitys <- seq(26,260,26)
-  }else{
-    perplexitys <- seq(16,160,16)
-  }
-  for(i in 1:10){
-    set.seed(seed)
-    fit <- Rtsne::Rtsne(X,perplexity=perplexitys[i],theta=0.0)
-    rk <- range_kept(fit$Y,X,(dim(X)[1]-1))
-    range_kepts <- c(range_kepts,rk)
-    print(i)
-  }
   
-  result <- data.frame(perp=perplexitys,
-                       eval=range_kepts)
+  range_kepts <- c()
+  
+  
+  set.seed(seed)
+  x3 <- sammon(dist(X),k = 2)$points
+  rk <- range_kept(x3,X,(dim(X)[1]-1))
+  
+  
+  
+  result <- data.frame(method="sammon",
+                       eval=rk)
   result[,"seed"] <- seed
   result[,"dataset"] <- dataset
   

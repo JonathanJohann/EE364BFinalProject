@@ -53,29 +53,49 @@ for(i in 1:dim(X)[2]){
   X[,i] <- scale_this(X[,i])
 }
 
+iterative_map <- function(X,d=2,niter=1,niter2=1000,...){
+  x_temp <- cmdscale(dist(X),k=2)
+  for(i in 1:niter){
+    eps = 1/(dist(X) - dist(x_temp))^2
+    eps = ifelse(eps>1e+6,1e+6,eps)
+    x_temp <- l2_map(X,d=2,W=eps,niter=niter2,...)$X
+  }
+  return(x_temp)
+}
 # 260 is max for clusters
 # 160 is max for MNIST sub sample
 for(i in 1:iterations){
   seed <- sample(1000000,size=1)
-  range_kepts <- c()
-  if(dataset=="clusters"){
-    perplexitys <- seq(26,260,26)
-  }else{
-    perplexitys <- seq(16,160,16)
-  }
-  for(i in 1:10){
-    set.seed(seed)
-    fit <- Rtsne::Rtsne(X,perplexity=perplexitys[i],theta=0.0)
-    rk <- range_kept(fit$Y,X,(dim(X)[1]-1))
-    range_kepts <- c(range_kepts,rk)
-    print(i)
-  }
   
-  result <- data.frame(perp=perplexitys,
+  range_kepts <- c()
+  
+  
+  set.seed(seed)
+  x6 <- iterative_map(X=X,niter=10,method=0)
+  set.seed(seed)
+  x6_1 <- iterative_map(X=X,niter=10,method=1)
+  set.seed(seed)
+  x6_2<- iterative_map(X=X,niter=10,method=2)
+  set.seed(seed)
+  x6_3<- iterative_map(X=X,niter=10,method=3,beta=0.3)
+  set.seed(seed)
+  x6_4 <- iterative_map(X=X,niter=10,method=3,beta=0.7)
+  set.seed(seed)
+  x6_5<- iterative_map(X=X,niter=10,method=4)
+  rk <- range_kept(x6,X,(dim(X)[1]-1))
+  rk1 <- range_kept(x6_1,X,(dim(X)[1]-1))
+  rk2 <- range_kept(x6_2,X,(dim(X)[1]-1))
+  rk3 <- range_kept(x6_3,X,(dim(X)[1]-1))
+  rk4 <- range_kept(x6_4,X,(dim(X)[1]-1))
+  rk5 <- range_kept(x6_5,X,(dim(X)[1]-1))
+  range_kepts <- c(rk,rk1,rk2,rk3,rk4,rk5)
+  
+  
+  result <- data.frame(method=0:5,
                        eval=range_kepts)
   result[,"seed"] <- seed
   result[,"dataset"] <- dataset
   
   write.csv(result,file=paste(dataset,seed,".csv",sep=""))
-  
 }
+
