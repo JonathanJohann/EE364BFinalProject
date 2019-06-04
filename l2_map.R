@@ -33,7 +33,9 @@ dist <- function(X)
 }
 
 
-sequential_map <- function(X,d=2,niter=500,print_iter=TRUE,squared=FALSE,augment=FALSE,beta=0.3,method=0,lambda=1,mu=1,nu=0,tau=1,stepsize=1e-4){
+rank_constrained_projection <- function(X,d=2,niter=500,print_iter=TRUE,squared=FALSE,
+                              augment=FALSE,beta=0.3,method=0,lambda=1,
+                              mu=1,nu=0,tau=1,stepsize=1e-4,lmds=FALSE,k=6){
   X <- as.matrix(X)
   N = dim(X)[1]
   P = matrix(rnorm(n=dim(X)[2]*d),nrow=dim(X)[2],ncol=d)
@@ -45,14 +47,30 @@ sequential_map <- function(X,d=2,niter=500,print_iter=TRUE,squared=FALSE,augment
   it <- 0
   jt <- 1
   last_update <- 0
-  cache = matrix(0,nrow=n,ncol=d)
+  cache = matrix(0,nrow=N,ncol=d)
   Do <- dist(X)
   n <- nrow(Do)
   Dnu <- Do^(0)
   Dnulam <- Do^(1)
-  
   diag(Dnu) <- 0
   diag(Dnulam) <- 0
+  if(lmds==TRUE){
+    Do <- dist(X)
+    n <- nrow(Do)
+    Daux <- apply(Do,2,sort)[k+1,]# choose the kth smallest distance expect 0.
+    Inb <- ifelse(Do>Daux, 0,1)
+    k.v <-  apply(Inb, 1, sum)
+    k <- (sum(k.v)-n)/n
+    Inb.sum <- matrix(rep(k.v, n),ncol=n)
+    Mka <- 0
+    Inb1 <- pmax(Inb,t(Inb)) # expanding the neighbors for symmetry.
+    Dnu <- ifelse(Inb1==1, Do^nu, 0)
+    Dnulam <- ifelse(Inb1==1, Do^(nu+1/lambda), 0)
+    diag(Dnu) <- 0
+    diag(Dnulam) <- 0
+    cc <- (sum(Inb1)-n)/n/n*median(Dnulam[Dnulam!=0])
+    t <- tau*cc
+  }
   while(it<niter){
     updated <- FALSE
     i <- (as.integer(jt) %% N) + 1
@@ -83,6 +101,12 @@ sequential_map <- function(X,d=2,niter=500,print_iter=TRUE,squared=FALSE,augment
                 grad[kc,] <- 2*(ref-far)/sqrt(sum((ref-far)^2))
               }
               if(j2<j){
+                print(i)
+                print(kc)
+                print(kf)
+                print(ref)
+                print(clo)
+                print(far)
                 while((sum((ref-clo)^2)>sum((ref-far)^2))&(l<10)){
                   alpha <- 0.00001/l
                   l <- l + 1
@@ -97,7 +121,11 @@ sequential_map <- function(X,d=2,niter=500,print_iter=TRUE,squared=FALSE,augment
                 diag(D1mu2) <- 0
                 D1mulam2 <- D1^(mu+1/lambda-2)
                 diag(D1mulam2) <- 0
-                M <- Dnu*D1mulam2-D1mu2*Dnulam
+                if(lmds==TRUE){
+                  M <- Dnu*D1mulam2-D1mu2*(Dnulam+t*(!Inb1))
+                } else{
+                  M <- (Dnu*D1mulam2-D1mu2*Dnulam)/ifelse(D0==0,1,D0)
+                }
                 E <- matrix(rep(1,n*d),n,d)
                 Grad <- X0*(M%*%E)-M%*%X0
                 normgrad <- (norm(X0)/norm(Grad))*Grad
@@ -121,22 +149,19 @@ sequential_map <- function(X,d=2,niter=500,print_iter=TRUE,squared=FALSE,augment
                   cache = cache + normgrad^2
                   X1 <- X0 - stepsize*normgrad / (sqrt(cache) + epsilon)
                 }
-                
-                
-                
                 D1 <- dist(X1)
                 D1mulam <- D1^(mu+1/lambda)
                 diag(D1mulam) <- 0
                 D1mu <- D1^mu
                 diag(D1mu) <- 0
               }
-              
               if(updated){
                 last_update <- jt
                 it<- it + 1
                 if(print_iter){
                   print(paste("Current Update -- ",it,sep=""))
-                  if(it>5){
+                  if(it%%100==1){
+                    plot(X1)
                     print(is.nan(X1))
                   }
                 }
@@ -163,18 +188,14 @@ sequential_map <- function(X,d=2,niter=500,print_iter=TRUE,squared=FALSE,augment
 
 
 l2_map <- function(X,k=1,d=3,lambda=1,mu=1,nu=0,tau=1,niter=500,W=NULL,method=0,beta=0.5,epsilon=1e-6,rankings=TRUE){
-
   Do <- dist(X)
   n <- nrow(Do)
   Dnu <- Do^(0)
   Dnulam <- Do^(1)
-  
   diag(Dnu) <- 0
   diag(Dnulam) <- 0
-  
   P = matrix(rnorm(dim(X)[2]*d),nrow=dim(X)[2],ncol=d)
   X1 <- X %*% P
-  
   D1 <- dist(X1)
   X1 <- X1*norm(Do)/norm(D1)
   stepsize <-0.1
@@ -183,7 +204,6 @@ l2_map <- function(X,k=1,d=3,lambda=1,mu=1,nu=0,tau=1,niter=500,W=NULL,method=0,
   cache = matrix(0,nrow=n,ncol=d)
   while (i < niter)
   {
-    
     X0 <- X %*% P
     D1mu2 <- D1^(mu-2)
     diag(D1mu2) <- 0
@@ -197,7 +217,6 @@ l2_map <- function(X,k=1,d=3,lambda=1,mu=1,nu=0,tau=1,niter=500,W=NULL,method=0,
       R <- ifelse(knnX==knnY,1,0)
       M <- M*R
     }  
-    
     if(!is.null(W)){
       Grad <- X0*((W*M)%*%E)-(W*M)%*%X0
     }
@@ -225,17 +244,12 @@ l2_map <- function(X,k=1,d=3,lambda=1,mu=1,nu=0,tau=1,niter=500,W=NULL,method=0,
       cache = cache + normgrad^2
       X1 <- X0 - stepsize*normgrad / (sqrt(cache) + epsilon)
     }
-    
-    
-    
     D1 <- dist(X1)
     D1mulam <- D1^(mu+1/lambda)
     diag(D1mulam) <- 0
     D1mu <- D1^mu
     diag(D1mu) <- 0
-    
     P = ginv(t(X)%*%X)%*%t(X)%*%X1
-    
     i <- i+1
     if(i%%100 == 0){
       print(i)
